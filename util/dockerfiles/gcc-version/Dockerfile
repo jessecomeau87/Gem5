@@ -23,31 +23,18 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-FROM --platform=${BUILDPLATFORM} ubuntu:22.04
+FROM --platform=${BUILDPLATFORM} ghcr.io/gem5/ubuntu-24.04_all-dependencies:latest
 
-# Valid version values:
-# 13
+RUN apt-get --purge -y remove gcc
 
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt -y update && \
-    # software-properties-common is necessary to install
-    # to add PPA to the system
-    apt -y install software-properties-common && \
-    # Installing PPA is necessary to install gcc-13
-    # because it is not available in the default repositories
-    # for Ubuntu 22.04
-    add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
-    apt -y update && \
-    apt -y install git m4 scons zlib1g zlib1g-dev libprotobuf-dev \
-    protobuf-compiler libprotoc-dev libgoogle-perftools-dev python3-dev \
-    doxygen libboost-all-dev libhdf5-serial-dev python3-pydot libpng-dev \
-    gcc-13 g++-13 make
+ARG version
+RUN apt update && apt -y install gcc-${version} g++-${version}
 
 RUN update-alternatives --install \
-    /usr/bin/g++ g++ /usr/bin/g++- 100
+    /usr/bin/g++ g++ /usr/bin/g++-${version} 100
 RUN update-alternatives --install \
-    /usr/bin/gcc gcc /usr/bin/gcc-13 100
+    /usr/bin/gcc gcc /usr/bin/gcc-${version} 100
 RUN update-alternatives --install \
-    /usr/bin/c++ c++ /usr/bin/g++-13 100
+    /usr/bin/c++ c++ /usr/bin/g++-${version} 100
 RUN update-alternatives --install \
-    /usr/bin/cc cc /usr/bin/gcc-13 100
+    /usr/bin/cc cc /usr/bin/gcc-${version} 100
