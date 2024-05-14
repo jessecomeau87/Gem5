@@ -714,6 +714,23 @@ class VsSegIntrlvMicroInst : public VectorArithMicroInst
         const loader::SymbolTable *)  const override;
 };
 
+class VPinVdCpyVsMicroInst : public VectorArithMicroInst
+{
+    private:
+        RegId srcRegIdxArr[2];
+        RegId destRegIdxArr[2];
+        bool hasVdOffset;
+        bool cpyVsToVtmp;
+
+    public:
+        VPinVdCpyVsMicroInst(ExtMachInst _machInst, uint32_t _microIdx,
+                             uint32_t _numVdPins, bool _hasVdOffset=false,
+                             bool _cpyVsToVtmp=false, uint8_t _vsRegIdx=0);
+        Fault execute(ExecContext *, trace::InstRecord *) const override;
+        std::string generateDisassembly(
+                Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
 } // namespace RiscvISA
 } // namespace gem5
 
