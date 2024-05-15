@@ -1,0 +1,8 @@
+Import("*")
+
+SimObject("Model.py", sim_objects=["Model"], enums=["SpatterKernelType"])
+
+Source("model.cc")
+Source("enums.cc")
+
+DebugFlag("Model")
