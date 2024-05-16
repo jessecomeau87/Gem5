@@ -11,9 +11,12 @@ const size_t ValueTypeBytes = 8;
 namespace gem5
 {
 
+using enums::SpatterKernelTypeStrings;
+
 Model::Model(const Params& params):
     ClockedObject(params),
-    requestorId(params.system->getRequestorId(this)), port(this, "port"),
+    requestorId(params.system->getRequestorId(this)),
+    port(this, name() + ".port"),
     baseIndexerAddr(params.base_indexer_addr),
     baseValuesAddr(params.base_values_addr),
     intRegFileSize(params.int_regfile_size), intRegUsed(0),
@@ -28,11 +31,11 @@ Model::Model(const Params& params):
     nextSendEvent([this](){ processNextSendEvent(); }, name() + ".SendEvent")
 {
     generatorBusyUntil.resize(requestGenBandwidth);
-    for (int i; i < requestGenBandwidth; i++) {
+    for (int i = 0; i < requestGenBandwidth; i++) {
         generatorBusyUntil[i] = 0;
     }
     portBusyUntil.resize(sendBandwidth);
-    for (int i; i < sendBandwidth; i++) {
+    for (int i = 0; i < sendBandwidth; i++) {
         portBusyUntil[i] = 0;
     }
 }
@@ -48,10 +51,10 @@ Model::getPort(const std::string& if_name, PortID idx)
 }
 
 void
-Model::addKernel(int id, int delta, int count, enums::SpatterKernelType type, std::vector<int> indices)
+Model::addKernel(uint32_t id, uint32_t delta, uint32_t count, SpatterKernelType type, std::vector<uint32_t> indices)
 {
     DPRINTF(Model, "%s: Adding kernel with id: %d, delta: %d, count: %d, type: %s.\n",
-        __func__, id, delta, count, enums::SpatterKernelTypeStrings[type]);
+        __func__, id, delta, count, SpatterKernelTypeStrings[type]);
     Kernel new_kernel(id, delta, count, type);
     new_kernel.setIndices(indices);
     kernels.push(new_kernel);
@@ -208,11 +211,17 @@ Model::processNextGenEvent()
             firstGeneratorAvailableTime =
                 std::min(firstGeneratorAvailableTime, generatorBusyUntil[i]);
             // if from a scatter kernel do write, otherwise do read.
-            MemCmd cmd = index_info->type() == enums::SpatterKernelType::scatter ? MemCmd::WriteReq : MemCmd::ReadReq;
+            MemCmd cmd = index_info->type() == SpatterKernelType::scatter ? MemCmd::WriteReq : MemCmd::ReadReq;
             // use the value from index which is index into Values Array.
             Addr values_addr = baseValuesAddr - (index_info->value() * ValueTypeBytes);
+            // values_addr now stores the address for the last byte we need to access
+            // since we are storing values in reverse order.
+            // we need to subtract ValueTypeBytes to get the first byte.
+            values_addr -= ValueTypeBytes;
+            DPRINTF(Model, "%s: Using index %d to access values at addr: %#x.\n",
+                __func__, index_info->value(), values_addr);
             // create the request for the address and size
-            RequestPtr req = std::make_shared<Request>(values_addr, IndexTypeBytes, 0, requestorId);
+            RequestPtr req = std::make_shared<Request>(values_addr, ValueTypeBytes, 0, requestorId);
             // Dummy PC to have PC-based prefetchers latch on;
             // get entropy into higher bits
             req->setPC(((Addr)requestorId) << 2);
@@ -228,13 +237,14 @@ Model::processNextGenEvent()
             DPRINTF(Model, "%s: Pushed pkt: %s to requestBuffer. This packet "
                         "is for accessing VALUES.\n", __func__, pkt->print());
             // now deallocate resources for reading the index
+            delete index_info;
             delete index_pkt;
             int_reg_used_delta--;
             receiveBuffer.pop();
             receiveBufferInsertionTime.pop();
         } else if (have_kernel && have_int_reg){
             Kernel& front = kernels.front();
-            int indexer_index, values_index;
+            uint32_t indexer_index, values_index;
             std::tie(indexer_index, values_index) = front.next();
             // occupy an int register
             available_int_regs_this_cycle--;
@@ -261,7 +271,7 @@ Model::processNextGenEvent()
 
             if (front.done()) {
                 DPRINTF(Model, "%s: Done with kernel %d type: %s.\n",
-                    __func__, front.id(), enums::SpatterKernelTypeStrings[front.type()]);
+                    __func__, front.id(), SpatterKernelTypeStrings[front.type()]);
                 kernels.pop();
             }
         } else {

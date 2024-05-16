@@ -17,38 +17,40 @@
 namespace gem5
 {
 
+using enums::SpatterKernelType;
+
 class Model: public ClockedObject
 {
   private:
     class Kernel {
       private:
-        int _id;
-        int _delta;
-        int _count;
+        uint32_t _id;
+        uint32_t _delta;
+        uint32_t _count;
 
-        enums::SpatterKernelType _type;
+        SpatterKernelType _type;
 
         // needed to iterate over _indices multiple times.
-        int _index;
-        int _tail;
-        std::deque<int> _indices;
+        uint32_t _index;
+        uint32_t _tail;
+        std::deque<uint32_t> _indices;
 
         // current iteration over _indices
-        int _iteration;
+        uint32_t _iteration;
       public:
-        Kernel(int id, int delta, int count, enums::SpatterKernelType type):
+        Kernel(uint32_t id, uint32_t delta, uint32_t count, SpatterKernelType type):
             _id(id), _delta(delta), _count(count), _type(type),
             _index(0), _tail(0), _iteration(0) {}
 
-        int id() { return _id; }
-        enums::SpatterKernelType type() { return _type; }
-        void setIndices(std::vector<int> indices)
+        uint32_t id() { return _id; }
+        SpatterKernelType type() { return _type; }
+        void setIndices(std::vector<uint32_t> indices)
         {
             _indices.assign(indices.begin(), indices.end());
             _tail = indices.size();
         }
         bool done() { return _iteration == _count; }
-        std::tuple<int, int> next()
+        std::tuple<uint32_t, uint32_t> next()
         {
             int front = _indices.front();
             int ret = (_delta * _iteration) + front;
@@ -101,12 +103,12 @@ class Model: public ClockedObject
 
     struct IndexInfo : public Packet::SenderState
     {
-        int _value;
-        enums::SpatterKernelType _type;
-        IndexInfo(int value, enums::SpatterKernelType type):
+        uint32_t _value;
+        SpatterKernelType _type;
+        IndexInfo(uint32_t value, SpatterKernelType type):
             _value(value), _type(type) {}
-        int value() { return _value; }
-        enums::SpatterKernelType type() { return _type; }
+        uint32_t value() { return _value; }
+        SpatterKernelType type() { return _type; }
     };
     std::queue<Kernel> kernels;
 
@@ -178,7 +180,7 @@ class Model: public ClockedObject
     bool recvTimingResp(PacketPtr pkt);
 
     // PyBindMethod to interface adding a kernel with python JSON frontend.
-    void addKernel(int id, int delta, int count, enums::SpatterKernelType type, std::vector<int> indices);
+    void addKernel(uint32_t id, uint32_t delta, uint32_t count, SpatterKernelType type, std::vector<uint32_t> indices);
 };
 
 } // namespace gem5
