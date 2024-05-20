@@ -855,10 +855,18 @@ TimingSimpleCPU::completeIfetch(PacketPtr pkt)
     if (curStaticInst && curStaticInst->isMemRef()) {
         // load or store: just send to dcache
         Fault fault = curStaticInst->initiateAcc(&t_info, traceData);
+        panic_if(fault != NoFault && curStaticInst->isPrefetch(),
+                 "Prefetches should not trigger faults");
 
         // If we're not running now the instruction will complete in a dcache
         // response callback or the instruction faulted and has started an
         // ifetch
+        // Note: we don't get a dcache response for prefetches, so manually
+        // set the CPU status back to running. This is probably not the
+        // cleanest solution but allows progress beyond prefetch instructions.
+        if (curStaticInst->isPrefetch()) {
+          _status = BaseSimpleCPU::Running;
+        }
         if (_status == BaseSimpleCPU::Running) {
             if (fault != NoFault && traceData) {
                 traceFault();
